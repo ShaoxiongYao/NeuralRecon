@@ -6,8 +6,7 @@ from tools.kp_reproject import *
 from tools.sync_poses import *
 
 # params
-project_path = '/home/sunjiaming/Repositories/NeuralFusion/data/neucon_demo/phone_room_0'
-# project_path = '/home/sunjiaming/Repositories/NeuralFusion/data/neucon_demo/conf_0'
+project_path = '/home/motion/Downloads/neucon_demodata_b5f1/neucon_demodata_b5f1'
 
 def process_data(data_path, data_source='ARKit', window_size=9, min_angle=15, min_distance=0.1, ori_size=(1920, 1440), size=(640, 480)):
     # save image
@@ -21,7 +20,7 @@ def process_data(data_path, data_source='ARKit', window_size=9, min_angle=15, mi
     # load intrin and extrin
     print('Load intrinsics and extrinsics')
     sync_intrinsics_and_poses(os.path.join(data_path, 'Frames.txt'), os.path.join(data_path, 'ARposes.txt'),
-                            os.path.join(data_path, 'SyncedPoses.txt'))
+                              os.path.join(data_path, 'SyncedPoses.txt'))
 
     path_dict = path_parser(data_path, data_source=data_source)
     cam_intrinsic_dict = load_camera_intrinsic(
@@ -65,6 +64,7 @@ def process_data(data_path, data_source='ARKit', window_size=9, min_angle=15, mi
                 ((np.linalg.inv(cam_pose[:3, :3]) @ last_pose[:3, :3] @ np.array([0, 0, 1]).T) * np.array(
                     [0, 0, 1])).sum())
             dis = np.linalg.norm(cam_pose[:3, 3] - last_pose[:3, 3])
+            # Note: Condition to add a new frame in fragments
             if angle > (min_angle / 180) * np.pi or dis > min_distance:
                 ids.append(id)
                 last_pose = cam_pose
