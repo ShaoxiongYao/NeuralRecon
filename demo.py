@@ -88,8 +88,11 @@ with torch.no_grad():
         if cfg.SAVE_INCREMENTAL:
             save_mesh_scene.save_incremental(epoch_idx, 0, sample['imgs'][0], outputs)
 
-        if cfg.VIS_INCREMENTAL:
-            save_mesh_scene.vis_incremental(epoch_idx, 0, sample['imgs'][0], outputs)
+        if cfg.VIS_INCREMENTAL: 
+            if 'scene_tsdf' in outputs.keys():
+                save_mesh_scene.vis_incremental(epoch_idx, 0, sample['imgs'][0], outputs)
+            else:
+                print(f"INFO: {frag_idx} has no tsdf output.")
 
         if cfg.SAVE_SCENE_MESH and frag_idx == frag_len - 1:
             assert 'scene_tsdf' in outputs, \
