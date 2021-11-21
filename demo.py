@@ -72,8 +72,6 @@ with torch.no_grad():
         #               3. VIS_INCREMENTAL
         save_scene = (cfg.SAVE_SCENE_MESH and frag_idx == frag_len - 1) or cfg.SAVE_INCREMENTAL or cfg.VIS_INCREMENTAL
 
-        print(sample['imgs'].shape)
-        input()
 
         start_time = time.time()
         outputs, loss_dict = model(sample, save_scene)

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torchvision
 
 from .backbone import MnasMulti
 from .neucon_network import NeuConNet
@@ -27,9 +28,27 @@ class NeuralRecon(nn.Module):
         # for fusing to global volume
         self.fuse_to_global = GRUFusion(cfg.MODEL, direct_substitute=True)
 
+        self.seg_model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
+
+
     def normalizer(self, x):
         """ Normalizes the RGB images to the input range"""
         return (x - self.pixel_mean.type_as(x)) / self.pixel_std.type_as(x)
+    
+    def get_person_mask(self, img):
+        img_tensor = img[0, :, :, :] / 255.0
+
+        with torch.no_grad():
+            outputs = self.seg_model([img_tensor])
+
+        person_idx = (outputs[0]['labels'] == 1).nonzero()
+
+        if person_idx.shape[0] != 0:
+            # takes the person with highest probability
+            person_idx = person_idx.flatten()[0]
+            person_mask = outputs[0]['masks'][person_idx, 0, :, :]
+
+        return person_mask
 
     def forward(self, inputs, save_mesh=False):
         '''
@@ -72,6 +91,8 @@ class NeuralRecon(nn.Module):
         inputs = tocuda(inputs)
         outputs = {}
         imgs = torch.unbind(inputs['imgs'], 1)
+
+        person_mask_lst = [self.get_person_mask(img) for img in imgs]
 
         # image feature extraction
         # in: images; out: feature maps
