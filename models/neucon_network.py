@@ -164,7 +164,6 @@ class NeuConNet(nn.Module):
 
             tsdf = self.tsdf_preds[i](feat)
             occ = self.occ_preds[i](feat)
-            print(f"occupancy grid max: {occ.max()}, min: {occ.min()}, average: {occ.mean()}")
 
             # -------compute loss-------
             if tsdf_target is not None:
@@ -180,7 +179,6 @@ class NeuConNet(nn.Module):
             occupancy[grid_mask == False] = False
 
             num = int(occupancy.sum().data.cpu())
-            print(f"scale {i}, occupancy size {num}")
 
             if num == 0:
                 logger.warning('no valid points: scale {}'.format(i))

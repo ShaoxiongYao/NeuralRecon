@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
+from torch.nn.functional import interpolate
 import torchvision
+import cv2
 
 from .backbone import MnasMulti
 from .neucon_network import NeuConNet
@@ -13,7 +15,7 @@ class NeuralRecon(nn.Module):
     NeuralRecon main class.
     '''
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, crop_dynamic=False):
         super(NeuralRecon, self).__init__()
         self.cfg = cfg.MODEL
         alpha = float(self.cfg.BACKBONE2D.ARC.split('-')[-1])
@@ -28,6 +30,7 @@ class NeuralRecon(nn.Module):
         # for fusing to global volume
         self.fuse_to_global = GRUFusion(cfg.MODEL, direct_substitute=True)
 
+        self.crop_dynamic = crop_dynamic
         self.seg_model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
 
 
@@ -43,12 +46,22 @@ class NeuralRecon(nn.Module):
 
         person_idx = (outputs[0]['labels'] == 1).nonzero()
 
+        feat_shape_lst = [(120,160), (60,80), (30,40)]
+
+        person_mask_lst = []
         if person_idx.shape[0] != 0:
             # takes the person with highest probability
             person_idx = person_idx.flatten()[0]
             person_mask = outputs[0]['masks'][person_idx, 0, :, :]
 
-        return person_mask
+            for mask_h, mask_w in feat_shape_lst:
+                resized_mask_tensor = interpolate(person_mask[None, None, :, :], 
+                                                  size=(mask_h, mask_w), mode='bilinear')
+                binary_mask = torch.round(1-resized_mask_tensor)
+                person_mask_lst.append(binary_mask)
+
+        return person_mask_lst
+        
 
     def forward(self, inputs, save_mesh=False):
         '''
@@ -92,11 +105,16 @@ class NeuralRecon(nn.Module):
         outputs = {}
         imgs = torch.unbind(inputs['imgs'], 1)
 
-        person_mask_lst = [self.get_person_mask(img) for img in imgs]
-
         # image feature extraction
         # in: images; out: feature maps
+        # feature dimensions: 120x160, 60x80, 30x40
         features = [self.backbone2d(self.normalizer(img)) for img in imgs]
+
+        if self.crop_dynamic:
+            person_mask_lst = [self.get_person_mask(img) for img in imgs]
+            for frame_idx in range(len(features)):
+                for feat_idx in range(3):
+                    features[frame_idx][feat_idx] *= person_mask_lst[frame_idx][feat_idx]
 
         # coarse-to-fine decoder: SparseConv and GRU Fusion.
         # in: image feature; out: sparse coords and tsdf

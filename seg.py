@@ -2,6 +2,7 @@ import glob
 import torch 
 import numpy as np
 import torchvision
+import torch.nn.functional as F
 import cv2
 
 COCO_INSTANCE_CATEGORY_NAMES = [
@@ -37,6 +38,12 @@ if __name__ == "__main__":
     img_path_lst = glob.glob(img_dir_path + "/*")
     img_path_lst = sorted(img_path_lst)
 
+    mask_h, mask_w = 30, 40
+    # mask_h, mask_w = 60, 80
+    # mask_h, mask_w = 120, 160
+
+    reshape_lib = 'torch'
+
     for img_path in img_path_lst:
         img = cv2.imread(img_path)
         # convert from bgr image to rgb image
@@ -60,15 +67,24 @@ if __name__ == "__main__":
             # takes the person with highest probability
             person_idx = person_idx.flatten()[0]
 
-            mask_np = outputs[0]['masks'].cpu().numpy()
-            mask_np = mask_np[person_idx, 0, :, :]
+            if reshape_lib == 'torch':
+                # torch reshape mask
+                mask_tensor = outputs[0]['masks'][person_idx, 0, :, :]
+                resized_mask_tensor = F.interpolate(mask_tensor[None, None, :, :], 
+                                                    size=(mask_h, mask_w), mode='bilinear')
+                mask_np = resized_mask_tensor.cpu().numpy()[0, 0, :, :]
+            elif reshape_lib == 'opencv':
+                # opencv reshape mask
+                mask_np = outputs[0]['masks'][person_idx, 0, :, :].cpu().numpy()
+                mask_np = cv2.resize(mask_np, dsize=(mask_w, mask_h), 
+                                    interpolation=cv2.INTER_CUBIC)
 
             mask_binary = (mask_np > 0.5).nonzero()
+            assert(len(mask_binary) == 2)
 
-            rgb = np.zeros_like(img).astype(np.uint8)
-
+            # visualize mask
+            rgb = np.zeros((mask_h, mask_w, 3)).astype(np.uint8)
             rgb[mask_binary[0], mask_binary[1], 0] = 255
-
             cv2.imshow("seg", rgb)
             cv2.waitKey(1)
 
