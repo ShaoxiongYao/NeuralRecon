@@ -113,6 +113,8 @@ class NeuralRecon(nn.Module):
         if self.crop_dynamic:
             person_mask_lst = [self.get_person_mask(img) for img in imgs]
             for frame_idx in range(len(features)):
+                if len(person_mask_lst[frame_idx]) == 0:
+                    continue
                 for feat_idx in range(3):
                     features[frame_idx][feat_idx] *= person_mask_lst[frame_idx][feat_idx]
 
