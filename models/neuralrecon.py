@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.nn.functional import interpolate
 import torchvision
 import cv2
+import numpy as np
 
 from .backbone import MnasMulti
 from .neucon_network import NeuConNet
@@ -15,7 +16,7 @@ class NeuralRecon(nn.Module):
     NeuralRecon main class.
     '''
 
-    def __init__(self, cfg, crop_dynamic=False):
+    def __init__(self, cfg, crop_dynamic=None):
         super(NeuralRecon, self).__init__()
         self.cfg = cfg.MODEL
         alpha = float(self.cfg.BACKBONE2D.ARC.split('-')[-1])
@@ -38,15 +39,13 @@ class NeuralRecon(nn.Module):
         """ Normalizes the RGB images to the input range"""
         return (x - self.pixel_mean.type_as(x)) / self.pixel_std.type_as(x)
     
-    def get_person_mask(self, img):
+    def get_person_mask(self, img, feat_shape_lst):
         img_tensor = img[0, :, :, :] / 255.0
 
         with torch.no_grad():
             outputs = self.seg_model([img_tensor])
 
         person_idx = (outputs[0]['labels'] == 1).nonzero()
-
-        feat_shape_lst = [(120,160), (60,80), (30,40)]
 
         person_mask_lst = []
         if person_idx.shape[0] != 0:
@@ -105,13 +104,36 @@ class NeuralRecon(nn.Module):
         outputs = {}
         imgs = torch.unbind(inputs['imgs'], 1)
 
+        # generate person mask
+
+        if self.crop_dynamic == 'images':
+            feat_shape_lst = [(480, 640)]
+            person_mask_lst = [self.get_person_mask(img, feat_shape_lst) for img in imgs]
+
+            masked_image = []
+            for frame_idx, img in enumerate(imgs):
+                if len(person_mask_lst[frame_idx]) != 0:
+                    img *= person_mask_lst[frame_idx][0]
+                masked_image.append(img)
+
+                # visualize mask
+                # vis_img = img.cpu().numpy()[0].transpose(1,2,0)
+                # norm_image = cv2.normalize(vis_img, None, alpha = 0, beta = 255, 
+                #                            norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)
+                # norm_image = norm_image.astype(np.uint8)
+                # norm_image = cv2.cvtColor(norm_image, cv2.COLOR_BGR2RGB)
+                # cv2.imshow("cropped image", norm_image)
+                # cv2.waitKey(0)
+            imgs = masked_image
+
         # image feature extraction
         # in: images; out: feature maps
         # feature dimensions: 120x160, 60x80, 30x40
         features = [self.backbone2d(self.normalizer(img)) for img in imgs]
 
-        if self.crop_dynamic:
-            person_mask_lst = [self.get_person_mask(img) for img in imgs]
+        if self.crop_dynamic == 'features':
+            feat_shape_lst = [(120,160), (60,80), (30,40)]
+            person_mask_lst = [self.get_person_mask(img, feat_shape_lst) for img in imgs]
             for frame_idx in range(len(features)):
                 if len(person_mask_lst[frame_idx]) == 0:
                     continue

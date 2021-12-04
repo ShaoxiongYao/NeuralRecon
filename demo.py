@@ -25,7 +25,9 @@ parser.add_argument('opts',
                     nargs=argparse.REMAINDER)
 
 parser.add_argument('--crop_dynamic',
-                    action='store_true',
+                    action='store', 
+                    type=str,
+                    default=None,
                     help="set to crop dynamic objects in the scene")
 
 # parse arguments and check
@@ -52,6 +54,7 @@ data_loader = DataLoader(test_dataset, cfg.BATCH_SIZE, shuffle=False, num_worker
 
 # model
 logger.info("Initializing the model on GPU...")
+# Initialize NeuralRecon
 model = NeuralRecon(cfg, args.crop_dynamic).cuda().eval()
 model = torch.nn.DataParallel(model, device_ids=[0])
 

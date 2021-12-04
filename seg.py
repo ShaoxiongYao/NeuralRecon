@@ -38,7 +38,8 @@ if __name__ == "__main__":
     img_path_lst = glob.glob(img_dir_path + "/*")
     img_path_lst = sorted(img_path_lst)
 
-    mask_h, mask_w = 30, 40
+    # mask_h, mask_w = 30, 40
+    mask_h, mask_w = 480, 640
     # mask_h, mask_w = 60, 80
     # mask_h, mask_w = 120, 160
 
@@ -48,6 +49,7 @@ if __name__ == "__main__":
         img = cv2.imread(img_path)
         # convert from bgr image to rgb image
         im_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        cv2.imwrite("image_with_person.png", img)
         cv2.imshow("input", img)
 
         # (2) convert value range from [0, 255] to [0, 1]
@@ -86,5 +88,6 @@ if __name__ == "__main__":
             rgb = np.zeros((mask_h, mask_w, 3)).astype(np.uint8)
             rgb[mask_binary[0], mask_binary[1], 0] = 255
             cv2.imshow("seg", rgb)
-            cv2.waitKey(1)
+            cv2.imwrite("person_mask.png", rgb)
+            cv2.waitKey(0)
 
