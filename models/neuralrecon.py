@@ -113,7 +113,11 @@ class NeuralRecon(nn.Module):
             masked_image = []
             for frame_idx, img in enumerate(imgs):
                 if len(person_mask_lst[frame_idx]) != 0:
-                    img *= person_mask_lst[frame_idx][0]
+                    mask = person_mask_lst[frame_idx][0]
+
+                    img *= mask
+                    # fill_value = self.pixel_mean[None, :, :, :].to(mask.device)
+                    # img += (1-mask)*fill_value
                 masked_image.append(img)
 
                 # visualize mask
