@@ -116,8 +116,8 @@ class NeuralRecon(nn.Module):
                     mask = person_mask_lst[frame_idx][0]
 
                     img *= mask
-                    # fill_value = self.pixel_mean[None, :, :, :].to(mask.device)
-                    # img += (1-mask)*fill_value
+                    fill_value = self.pixel_mean[None, :, :, :].to(mask.device)
+                    img += (1-mask)*fill_value
                 masked_image.append(img)
 
                 # visualize mask
@@ -127,6 +127,7 @@ class NeuralRecon(nn.Module):
                 # norm_image = norm_image.astype(np.uint8)
                 # norm_image = cv2.cvtColor(norm_image, cv2.COLOR_BGR2RGB)
                 # cv2.imshow("cropped image", norm_image)
+                # cv2.imwrite("masked_person.png", norm_image)
                 # cv2.waitKey(0)
             imgs = masked_image
 
